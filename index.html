@@ -351,11 +351,6 @@
             <p class="image-caption">Figure 7: CustomerOrderEventProcessor - Processing & Retry Flow</p>
         </div>
 
-        <div class="image-container">
-            <img src="images/security.png" alt="API Security flow">
-            <p class="image-caption">Figure 8: Spring security Flow</p>
-        </div>
-
         <h3>Processing Logic</h3>
         <div class="info-box">
             <h4>Success Path:</h4>
@@ -399,6 +394,156 @@
         </table>
     </section>
 
+    <!-- Spring Security Section -->
+    <section class="section">
+        <h2>API Security</h2>
+        <p>
+            The application implements token-based authentication using Spring Security with a custom filter chain
+            that validates Bearer tokens before allowing access to protected resources.
+        </p>
+
+        <div class="image-container">
+            <img src="images/security.png" alt="Spring Security Filter Chain Flow">
+            <p class="image-caption">Figure 8: Spring Security Filter Chain Setup & Request Flow</p>
+        </div>
+
+        <h3>Security Architecture</h3>
+        <p>
+            The security layer uses a custom <code>TokenAuthenticationFilter</code> that intercepts all incoming
+            requests and validates authentication tokens before allowing access to protected endpoints.
+        </p>
+
+        <div class="info-box">
+            <h4>Security Configuration:</h4>
+            <ul>
+                <li><strong>Authentication Type:</strong> Bearer Token (Custom Implementation)</li>
+                <li><strong>Session Management:</strong> STATELESS (no server-side sessions)</li>
+                <li><strong>CSRF Protection:</strong> Disabled (stateless API design)</li>
+                <li><strong>Frame Options:</strong> Disabled (allows H2 Console iframe access)</li>
+                <li><strong>Filter Position:</strong> TokenAuthenticationFilter runs BEFORE UsernamePasswordAuthenticationFilter</li>
+            </ul>
+        </div>
+
+        <h3>Request Processing Flow</h3>
+        <div class="info-box">
+            <h4>Authentication Flow:</h4>
+            <ol>
+                <li><strong>Request Reception:</strong> Client sends HTTP request with Authorization header containing Bearer token</li>
+                <li><strong>Filter Interception:</strong> Spring Security Filter Chain invokes TokenAuthenticationFilter</li>
+                <li><strong>Path Validation:</strong> Filter checks if request path is public (bypasses authentication for whitelisted paths)</li>
+                <li><strong>Token Extraction:</strong> Filter extracts Bearer token from "Authorization" header (format: "Bearer &lt;token&gt;")</li>
+                <li><strong>Token Validation:</strong> TokenValidationService validates token against predefined whitelist</li>
+                <li><strong>Authentication Decision:</strong>
+                    <ul>
+                        <li><strong>Valid Token:</strong> Sets authentication in SecurityContext, continues filter chain to controller</li>
+                        <li><strong>Invalid/Missing Token:</strong> Returns HTTP 401 Unauthorized with JSON error response</li>
+                    </ul>
+                </li>
+                <li><strong>Controller Processing:</strong> If authenticated, request reaches the target controller/API endpoint</li>
+                <li><strong>Response:</strong> Response flows back through filter chain to client</li>
+            </ol>
+        </div>
+
+        <h3>Security Components</h3>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Type</th>
+                <th>Responsibility</th>
+            </tr>
+            <tr>
+                <td><code>SecurityConfig</code></td>
+                <td>@Configuration</td>
+                <td>Configures security filter chain, session policy, CSRF settings, and public endpoints</td>
+            </tr>
+            <tr>
+                <td><code>TokenAuthenticationFilter</code></td>
+                <td>@Component (Filter)</td>
+                <td>Extends OncePerRequestFilter, intercepts requests, extracts and validates tokens</td>
+            </tr>
+            <tr>
+                <td><code>TokenValidationService</code></td>
+                <td>@Service</td>
+                <td>Contains validation logic, checks tokens against whitelist of valid credentials</td>
+            </tr>
+        </table>
+
+        <h3>Valid Authentication Token</h3>
+        <div class="info-box">
+            <h4>Demo Token:</h4>
+            <p>For demonstration purposes, the system accepts the following hardcoded token:</p>
+            <ul>
+                <li><code>order-management-platform</code></li>
+            </ul>
+            <p><strong>Usage Example:</strong></p>
+            <code style="display: block; padding: 10px; margin-top: 10px;">
+                Authorization: Bearer order-management-platform
+            </code>
+            <p style="margin-top: 10px; font-size: 0.9rem; color: #d73a49;">
+                <strong>Note:</strong> In production, tokens should be dynamically generated (JWT), validated against
+                a secure token store, include expiration times, and support token refresh mechanisms.
+            </p>
+        </div>
+
+        <h3>Public Endpoints (No Authentication Required)</h3>
+        <p>
+            The following endpoints bypass token validation and are accessible without authentication:
+        </p>
+        <ul>
+            <li><code>/public/**</code> - Public API endpoints for unrestricted access</li>
+            <li><code>/error</code> - Error handling endpoint</li>
+            <li><code>/h2-console/**</code> - H2 database console for development</li>
+            <li><code>/swagger-ui/**</code> - Swagger UI documentation interface</li>
+            <li><code>/v3/api-docs/**</code> - OpenAPI 3.0 documentation JSON/YAML</li>
+            <li><code>/swagger-resources/**</code> - Swagger configuration resources</li>
+            <li><code>/webjars/**</code> - Web UI static dependencies</li>
+        </ul>
+
+        <h3>Error Responses</h3>
+        <table>
+            <tr>
+                <th>Scenario</th>
+                <th>HTTP Status</th>
+                <th>Response Body</th>
+            </tr>
+            <tr>
+                <td>Missing Authorization header</td>
+                <td>401 Unauthorized</td>
+                <td><code>{"error": "Invalid or missing token"}</code></td>
+            </tr>
+            <tr>
+                <td>Invalid token format</td>
+                <td>401 Unauthorized</td>
+                <td><code>{"error": "Invalid or missing token"}</code></td>
+            </tr>
+            <tr>
+                <td>Token not in whitelist</td>
+                <td>401 Unauthorized</td>
+                <td><code>{"error": "Invalid or missing token"}</code></td>
+            </tr>
+            <tr>
+                <td>Valid token</td>
+                <td>200 OK (or appropriate status)</td>
+                <td>Normal API response</td>
+            </tr>
+        </table>
+
+        <h3>Production Security Considerations</h3>
+        <div class="info-box">
+            <h4>Recommended Enhancements:</h4>
+            <ul>
+                <li><strong>JWT Implementation:</strong> Use JSON Web Tokens with signature verification and claims validation</li>
+                <li><strong>Token Expiration:</strong> Implement time-based token expiration and refresh token mechanism</li>
+                <li><strong>OAuth2 Integration:</strong> Support OAuth2/OIDC for enterprise authentication</li>
+                <li><strong>Rate Limiting:</strong> Add rate limiting to prevent brute force attacks</li>
+                <li><strong>Audit Logging:</strong> Log all authentication attempts for security monitoring</li>
+                <li><strong>HTTPS Enforcement:</strong> Require HTTPS in production to protect tokens in transit</li>
+                <li><strong>Token Revocation:</strong> Implement token blacklisting for immediate access revocation</li>
+                <li><strong>Role-Based Access:</strong> Add authorization layer with role/permission checks</li>
+            </ul>
+        </div>
+    </section>
+
     <!-- API Documentation -->
     <section class="section">
         <h2>API Documentation</h2>
@@ -408,7 +553,7 @@
 
         <div class="image-container">
             <img src="images/swagger.png" alt="Swagger API Documentation">
-            <p class="image-caption">Figure 8: Swagger UI - API Endpoints Overview</p>
+            <p class="image-caption">Figure 9: Swagger UI - API Endpoints Overview</p>
         </div>
 
         <h3>Available Endpoints</h3>
@@ -450,12 +595,12 @@
 
         <div class="image-container">
             <img src="images/h2_console.png" alt="H2 Console Login">
-            <p class="image-caption">Figure 9: H2 Console Connection Settings</p>
+            <p class="image-caption">Figure 10: H2 Console Connection Settings</p>
         </div>
 
         <div class="image-container">
             <img src="images/h2_console_table.png" alt="H2 Console Table View">
-            <p class="image-caption">Figure 10: Customer Details Table in H2 Console</p>
+            <p class="image-caption">Figure 11: Customer Details Table in H2 Console</p>
         </div>
 
         <div class="info-box">
@@ -481,11 +626,13 @@
             <li><strong>Retry Pattern:</strong> Exponential backoff with configurable retry limits</li>
             <li><strong>Separation of Concerns:</strong> Clear boundaries between API, service, and data layers</li>
             <li><strong>Transactional Safety:</strong> ACID compliance with saveAndFlush operations</li>
+            <li><strong>Filter Chain Pattern:</strong> Custom authentication filter integrated into Spring Security chain</li>
         </ul>
 
         <h3>Technology Stack</h3>
         <ul>
             <li>Spring Boot for application framework and dependency injection</li>
+            <li>Spring Security for authentication and authorization</li>
             <li>Spring Data JPA for ORM and database operations</li>
             <li>Kafka for asynchronous event-driven messaging</li>
             <li>H2 Database for in-memory data storage</li>
@@ -498,13 +645,14 @@
             <li>Unit tests covering all business logic paths</li>
             <li>Mock-based testing for external dependencies</li>
             <li>Verification of retry logic and state transitions</li>
+            <li>Security filter testing with valid/invalid tokens</li>
             <li>Edge case handling (max retries, null values, concurrent updates)</li>
         </ul>
     </section>
 
     <footer>
         <p>Order Management Platform - Event-Driven Architecture Demo</p>
-        <p style="margin-top: 10px; font-size: 0.85rem;">Built with Spring Boot, Kafka, and modern software engineering practices</p>
+        <p style="margin-top: 10px; font-size: 0.85rem;">Built with Spring Boot, Kafka, Spring Security, and modern software engineering practices</p>
     </footer>
 </div>
 
